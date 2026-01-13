@@ -32,20 +32,50 @@ async def chat_endpoint(req: ChatRequest):
     agent = await initialize_agent(req.model)
 
     async def event_generator():
-        # Stream events from the graph
-        async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1"):
-            event_type = event["event"]
+        try:
+            # Stream events from the graph
+            async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1"):
+                event_type = event["event"]
             
-            # Detect the Tool Call (The SPARQL generation)
-            if event_type == "on_tool_start" and event["name"] == "sparql_tool_name":
-                # Send a JSON-encoded event for the tool call
-                yield f"data: {json.dumps({'type': 'tool', 'data': event['data']['input']['query']})}\n\n"
-            
-            # Detect the Final Text Answer
-            elif event_type == "on_chat_model_stream":
-                content = event["data"]["chunk"].content
-                if content:
-                    # Send a JSON-encoded event for the text token
-                    yield f"data: {json.dumps({'type': 'token', 'data': content})}\n\n"
+                # Detect the Tool Call (The SPARQL generation)
+                if event_type == "on_tool_end":
+                    output_data = event.get("data", {}).get("output")
 
+                    content = ""
+                    if hasattr(output_data, "content"):
+                        content = output_data.content
+                    elif isinstance(output_data, str):
+                        content = output_data
+                    # Parse the JSON inside the ToolMessage to find 'generated_sparql'
+                    if content and "generated_sparql" in content:
+                        try:
+                            json_content = json.loads(content)
+                            if "generated_sparql" in json_content:
+                                query = json_content["generated_sparql"]
+                                    
+                                # YIELD JSON EVENT
+                                payload = json.dumps({
+                                    "type": "tool", 
+                                    "data": query
+                                })
+                                yield f"data: {payload}\n\n"
+                        except:
+                            pass
+                
+                # Detect the Final Text Answer
+                elif event_type == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content") and chunk.content:
+                        # YIELD JSON EVENT
+                        payload = json.dumps({
+                            "type": "message", 
+                            "data": chunk.content
+                        })
+                        yield f"data: {payload}\n\n"
+        except Exception as e:
+            # Send error as a message so it appears in chat
+            err_payload = json.dumps({"type": "message", "data": f"[Error: {str(e)}]"})
+            print( f"Error during chat processing: {str(e)}" )
+            yield f"data: {err_payload}\n\n"
+    
     return StreamingResponse(event_generator(), media_type="text/event-stream")
