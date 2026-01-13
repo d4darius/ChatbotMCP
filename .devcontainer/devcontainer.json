@@ -1,0 +1,34 @@
+{
+  "name": "MCP Chatbot Stack",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
+
+  "postCreateCommand": "pip install poetry && cd backend && poetry install --with eval && cd ../frontend && npm install",
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // Tells VS Code to look for the venv that Poetry creates
+        "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python"
+      },
+      "extensions": ["esbenp.prettier-vscode", "ms-python.python"]
+    }
+  },
+
+  // Automatically forward these ports so you can click them
+  "forwardPorts": [5173, 8000],
+
+  // Make the ports public so the browser can access them easily
+  "portsAttributes": {
+    "5173": {
+      "label": "Frontend",
+      "visibility": "public"
+    },
+    "8000": {
+      "label": "Backend",
+      "visibility": "private"
+    }
+  }
+}

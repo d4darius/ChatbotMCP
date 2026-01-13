@@ -19,7 +19,7 @@ function App() {
     setCurrentSparql(null);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: input, model: selectedModel }),
@@ -49,7 +49,10 @@ function App() {
                 setCurrentSparql(event.data);
               } else if (event.type === "token") {
                 assistantMsg.content += event.data;
-                setMessages((prev) => [...prev.slice(0, -1), { ...assistantMsg }]);
+                setMessages((prev) => [
+                  ...prev.slice(0, -1),
+                  { ...assistantMsg },
+                ]);
               }
             } catch (e) {
               console.error("Failed to parse SSE event:", dataStr, e);

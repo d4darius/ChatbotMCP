@@ -1,7 +1,7 @@
 import asyncio
 import json
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
@@ -22,6 +22,10 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     model: str
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return "<h1>Welcome to the MCP Backend</h1>"
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
