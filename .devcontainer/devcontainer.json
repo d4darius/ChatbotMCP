@@ -5,7 +5,7 @@
     "ghcr.io/devcontainers/features/node:1": {}
   },
 
-  "postCreateCommand": "pip install poetry && cd backend && poetry install --with eval && cd ../frontend && npm install",
+  "postCreateCommand": "pip install poetry && cd backend && poetry install --with eval && cd ../frontend/my-mcp-chat/src && npm install",
 
   "customizations": {
     "vscode": {
