@@ -36,8 +36,21 @@ async def chat_endpoint(req: ChatRequest):
             # Stream events from the graph
             async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1"):
                 event_type = event["event"]
+
+                # DETECT TOOL START (Name + Args)
+                if event_type == "on_tool_start":
+                    # Filter out internal LangChain tools if necessary
+                    if event["name"] not in ["__start__", "_Exception"]:
+                        payload = json.dumps({
+                            "type": "tool_start",
+                            "data": {
+                                "name": event["name"],
+                                "args": event["data"].get("input")
+                            }
+                        })
+                        yield f"data: {payload}\n\n"
             
-                # Detect the Tool Call (The SPARQL generation)
+                # DETECT TOOL CALL (The SPARQL generation)
                 if event_type == "on_tool_end":
                     output_data = event.get("data", {}).get("output")
 
@@ -55,14 +68,14 @@ async def chat_endpoint(req: ChatRequest):
                                     
                                 # YIELD JSON EVENT
                                 payload = json.dumps({
-                                    "type": "tool", 
+                                    "type": "sparql_update", 
                                     "data": query
                                 })
                                 yield f"data: {payload}\n\n"
                         except:
                             pass
                 
-                # Detect the Final Text Answer
+                # DETECT FINAL TEXT ANSWER
                 elif event_type == "on_chat_model_stream":
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content") and chunk.content:
