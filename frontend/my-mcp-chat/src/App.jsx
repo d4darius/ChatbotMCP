@@ -12,12 +12,11 @@ function App() {
   const sendMessage = async () => {
     if (!input) return;
 
-    // Add user message to UI immediately
     const userMsg = { role: "user", content: input };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsStreaming(true);
-    setCurrentSparql(null); // Reset SPARQL for new turn
+    setCurrentSparql(null);
 
     try {
       const response = await fetch("http://localhost:8000/chat", {
@@ -29,26 +28,33 @@ function App() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMsg = { role: "assistant", content: "" };
-
-      // Add a placeholder assistant message we will update live
       setMessages((prev) => [...prev, assistantMsg]);
 
+      let buffer = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
 
-        // Custom Logic: parse out our special backend marker
-        if (chunk.includes("__TOOL_CALL__:")) {
-          const split = chunk.split("__TOOL_CALL__:");
-          const query = split[1].split("\n\n")[0]; // Extract query
-          setCurrentSparql(query);
-        } else {
-          // Standard text token
-          assistantMsg.content += chunk;
-          // Force React to update the specific message in the list
-          setMessages((prev) => [...prev.slice(0, -1), { ...assistantMsg }]);
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          if (part.startsWith("data: ")) {
+            const dataStr = part.substring(6);
+            try {
+              const event = JSON.parse(dataStr);
+              if (event.type === "tool") {
+                setCurrentSparql(event.data);
+              } else if (event.type === "token") {
+                assistantMsg.content += event.data;
+                setMessages((prev) => [...prev.slice(0, -1), { ...assistantMsg }]);
+              }
+            } catch (e) {
+              console.error("Failed to parse SSE event:", dataStr, e);
+            }
+          }
         }
       }
     } catch (err) {

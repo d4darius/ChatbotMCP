@@ -1,4 +1,5 @@
 import asyncio
+import json
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,13 +34,14 @@ async def chat_endpoint(req: ChatRequest):
             
             # Detect the Tool Call (The SPARQL generation)
             if event_type == "on_tool_start" and event["name"] == "sparql_tool_name":
-                # Send a special marker to the frontend
-                yield f"__TOOL_CALL__:{event['data']['input']['query']}\n\n"
+                # Send a JSON-encoded event for the tool call
+                yield f"data: {json.dumps({'type': 'tool', 'data': event['data']['input']['query']})}\n\n"
             
             # Detect the Final Text Answer
             elif event_type == "on_chat_model_stream":
                 content = event["data"]["chunk"].content
                 if content:
-                    yield content
+                    # Send a JSON-encoded event for the text token
+                    yield f"data: {json.dumps({'type': 'token', 'data': content})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
