@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+
+# Virtual environments
+.env
+env/
+venv/
+.venv/
+venv*/
+env.bak/
+ENV/
+.backendVenv
+
+# Packaging
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+wheelhouse/
+
+# Poetry
+.poetry/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+queries
+
+# Type checking / caches
+.mypy_cache/
+.pytype/
+.pyre/
+cython_debug/
+
+# IDEs/editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs, databases, local settings
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+#langgraph
+.langgraph_api
+
+#queries
+queries/

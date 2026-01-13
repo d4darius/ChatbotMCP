@@ -1,0 +1,13 @@
+asyncio
+fastapi
+uvicorn
+python-dotenv
+langchain-core
+langchain-openai
+langchain-groq
+langchain-anthropic
+langchain-ollama
+langchain-mcp-adapters
+langsmith
+langgraph
+pydantic

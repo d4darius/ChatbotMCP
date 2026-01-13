@@ -1,0 +1,50 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "MCP Server and Evaluators for DOREMUS Knowledge Graph"
+authors = [
+    { name = "Simone Fassio", email = "simone.fassio@eurecom.fr" },
+    { name = "Dario Gosmar", email = "dario.gosmar@eurecom.fr" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.31.0"
+fastmcp = "^2.14.0"
+uvicorn = "^0.35.0"
+starlette = "^0.36.0"
+fastapi = "^0.109.0"
+pytest = "^8.0.0"
+pytest-xdist = "^3.5.0"
+mcp-use = "^1.0.0"
+pandas = "^2.3.3"
+nanoid = "^2.0.0"
+openai = "^1.0.0"
+groq = "^0.37.1"
+ollama = "^0.6.1"
+
+# --- Group for Evaluator/Client-Only Dependencies ---
+[tool.poetry.group.eval]
+optional = true
+
+[tool.poetry.group.eval.dependencies]
+python-dotenv = "^1.0.0"
+langchain = "^0.3.0"
+langchain-openai = "^0.2.0"
+langchain-ollama = "^0.3.0"
+langchain-mcp-adapters = "^0.1.0"
+langchain-groq = "^0.2.0"
+langchain-anthropic = "^0.3.0"
+langgraph = "^0.2.0"
+langgraph-cli = {extras = ["inmem"], version = "^0.1.0"}
+pandas = "^2.2.0"
+matplotlib = "^3.8.0"
+jupyter = "^1.0.0"
+html2text = "^2024.0.0"
+rich = "^13.7.0"
+langsmith = "^0.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
