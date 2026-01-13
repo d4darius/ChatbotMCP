@@ -13,7 +13,7 @@ from .extended_mcp_client import ExtendedMCPClient
 load_dotenv(".env")
 
 recursion_limit = int(os.getenv("GRAPH_RECURSION_LIMIT", "10"))
-mcp_url = os.getenv("DOREMUS_MCP_URL", "http://localhost:8000/mcp")
+mcp_url = os.getenv("DOREMUS_MCP_URL", "https://Doremus.fastmcp.app/mcp")
 mcp_transport = os.getenv("DOREMUS_MCP_TRANSPORT", "streamable_http")
 
 
