@@ -36,6 +36,7 @@ async def chat_endpoint(req: ChatRequest):
             # Stream events from the graph
             async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1"):
                 event_type = event["event"]
+                print(f"Event type: {event_type}")
 
                 # DETECT TOOL START (Name + Args)
                 if event_type == "on_tool_start":
@@ -60,11 +61,12 @@ async def chat_endpoint(req: ChatRequest):
                     elif isinstance(output_data, str):
                         content = output_data
                     # Parse the JSON inside the ToolMessage to find 'generated_sparql'
-                    if content and "generated_sparql" in content:
+                    print(f"Content received: {content}")
+                    if content and "generated_query" in content:
                         try:
                             json_content = json.loads(content)
-                            if "generated_sparql" in json_content:
-                                query = json_content["generated_sparql"]
+                            if "generated_query" in json_content:
+                                query = json_content["generated_query"]
                                     
                                 # YIELD JSON EVENT
                                 payload = json.dumps({
