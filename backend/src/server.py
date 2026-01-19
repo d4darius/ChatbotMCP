@@ -1,5 +1,8 @@
 import asyncio
 import json
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,8 +26,21 @@ class ChatRequest(BaseModel):
     message: str
     model: str
 
+# 1. Where the built frontend is expected inside the backend image
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+index_path = os.path.join(static_dir, "index.html")
+
+# 2. Mount the React build folder (CSS/JS assets), if present
+if os.path.isdir(static_dir):
+    assets_dir = os.path.join(static_dir, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
+    # If the React build exists, serve it; otherwise show a simple backend page
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
     return "<h1>Welcome to the MCP Backend</h1>"
 
 @app.post("/chat")
@@ -94,3 +110,19 @@ async def chat_endpoint(req: ChatRequest):
             yield f"data: {err_payload}\n\n"
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+# 1. Mount the React build folder (CSS/JS assets)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(static_dir, "assets")), name="assets")
+
+# 2. Catch-all route: Serve index.html for any other path (React Router support)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    # If the specific file exists (like favicon.ico), serve it
+    file_path = os.path.join(static_dir, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+    
+    # Otherwise, return the main React app
+    return FileResponse(os.path.join(static_dir, "index.html"))
