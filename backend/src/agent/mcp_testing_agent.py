@@ -18,11 +18,9 @@ mcp_transport = os.getenv("DOREMUS_MCP_TRANSPORT", "streamable_http")
 
 
 evaluation_models = {
-    "openai": "gpt-4.1", 
+    "openai": "gpt-5.2", 
     "groq": "llama-3.3-70b-versatile",
-    "anthropic": "claude-sonnet-4-5-20250929", 
-    "mistral": "mistral-7b-instant",
-    "ollama": "gpt-oss:120b"
+    "ollama": "qwen3-coder:30b"
 }
 
 connections = {

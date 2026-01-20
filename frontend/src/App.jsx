@@ -5,9 +5,9 @@ import {
   Database,
   Terminal,
   X,
-  ChevronRight, // Kept for the icon inside the header
-  ChevronDown, // NEW: For the toggle
-  ChevronUp, // NEW: For the toggle
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // --- COMPONENT: SPARQL FORMATTER (No Changes) ---
@@ -43,7 +43,7 @@ const SparqlFormatter = ({ query }) => {
         </span>
       ) : (
         <span key={index}>{part}</span>
-      )
+      ),
     );
   };
 
@@ -64,8 +64,8 @@ const SparqlFormatter = ({ query }) => {
               {isComment
                 ? line
                 : line.trim() === ""
-                ? "\u00A0"
-                : highlightSyntax(line)}
+                  ? "\u00A0"
+                  : highlightSyntax(line)}
             </div>
           );
         })}
@@ -100,9 +100,9 @@ const SettingsModal = ({ isOpen, onClose, model, setModel }) => {
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
-              <option value="gpt-4o">openai</option>
-              <option value="claude-3-5-sonnet">ollama</option>
-              <option value="llama-3-70b">groq</option>
+              <option value="openai">openai - gpt-5.2</option>
+              <option value="ollama">ollama - qwen3-coder:30b</option>
+              <option value="groq">groq - llama-3.3-70b-versatile</option>
             </select>
           </div>
         </div>
@@ -141,15 +141,22 @@ function App() {
   const [toolHistory, setToolHistory] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // NEW: State to control the sidebar collapse
   const [isTraceOpen, setIsTraceOpen] = useState(true);
+  const [isSparqlCopied, setIsSparqlCopied] = useState(false);
+  const copyResetTimeoutRef = useRef(null);
 
   const scrollAnchorRef = useRef(null);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current)
+        clearTimeout(copyResetTimeoutRef.current);
+    };
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -223,6 +230,22 @@ function App() {
     }
   };
 
+  const copySparqlToClipboard = async () => {
+    if (!currentSparql) return;
+    try {
+      await navigator.clipboard.writeText(currentSparql);
+
+      setIsSparqlCopied(true);
+      if (copyResetTimeoutRef.current)
+        clearTimeout(copyResetTimeoutRef.current);
+      copyResetTimeoutRef.current = setTimeout(() => {
+        setIsSparqlCopied(false);
+      }, 2000);
+    } catch (e) {
+      console.error("Clipboard copy failed", e);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
       {/* --- LEFT SIDEBAR (Visualization) --- */}
@@ -286,9 +309,24 @@ function App() {
               <Database size={14} /> Live Query
             </h3>
             {currentSparql && (
-              <span className="text-[10px] px-2 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800">
-                Active
-              </span>
+              <div className="flex items-center gap-[5px]">
+                <button
+                  onClick={copySparqlToClipboard}
+                  className={[
+                    "text-[10px] px-2 py-0.5 rounded border transition-colors",
+                    isSparqlCopied
+                      ? "bg-green-900/30 text-green-300 border-green-800"
+                      : "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700",
+                  ].join(" ")}
+                  title={isSparqlCopied ? "Copied!" : "Copy query to clipboard"}
+                  aria-label="Copy SPARQL query to clipboard"
+                >
+                  {isSparqlCopied ? "Copied" : "Copy"}
+                </button>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800">
+                  Active
+                </span>
+              </div>
             )}
           </div>
           <div className="flex-1 p-4 overflow-auto">
@@ -297,41 +335,57 @@ function App() {
         </div>
       </div>
 
-      {/* --- RIGHT SIDE: CHAT AREA (No Changes) --- */}
+      {/* --- RIGHT SIDE: CHAT AREA --- */}
       <div className="flex-1 flex flex-col bg-white relative">
         <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex w-full ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              <div
-                className={`max-w-[85%] px-5 py-4 rounded-2xl text-sm leading-relaxed shadow-sm relative ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-slate-100 text-slate-800 border border-slate-200 rounded-bl-none"
-                }`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
-                    Agent
-                  </div>
-                )}
-                <span className="whitespace-pre-wrap break-words break-all">
-                  {msg.content}
-                </span>
-                {msg.role === "assistant" &&
-                  isStreaming &&
-                  idx === messages.length - 1 && (
-                    <span className="inline-block w-2 h-4 ml-1 align-middle bg-slate-400 animate-pulse rounded-sm" />
-                  )}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
+          {messages.length === 0 ? (
+            <div className="h-full w-full flex flex-col items-center justify-center select-none">
+              <img
+                src="/sparql.svg"
+                alt="RDF Chatbot"
+                className="w-40 h-40 opacity-15 grayscale saturate-50"
+                draggable="false"
+              />
+              <div className="mt-4 text-slate-400 text-sm font-semibold tracking-wide">
+                RDF Chatbot
               </div>
             </div>
-          ))}
-          <div ref={scrollAnchorRef} />
+          ) : (
+            <>
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex w-full ${
+                    msg.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[85%] px-5 py-4 rounded-2xl text-sm leading-relaxed shadow-sm relative ${
+                      msg.role === "user"
+                        ? "bg-blue-600 text-white rounded-br-none"
+                        : "bg-slate-100 text-slate-800 border border-slate-200 rounded-bl-none"
+                    }`}
+                  >
+                    {msg.role === "assistant" && (
+                      <div className="text-[10px] uppercase font-bold text-slate-400 mb-1">
+                        Agent
+                      </div>
+                    )}
+                    <span className="whitespace-pre-wrap break-words break-all">
+                      {msg.content}
+                    </span>
+                    {msg.role === "assistant" &&
+                      isStreaming &&
+                      idx === messages.length - 1 && (
+                        <span className="inline-block w-2 h-4 ml-1 align-middle bg-slate-400 animate-pulse rounded-sm" />
+                      )}
+                  </div>
+                </div>
+              ))}
+              <div ref={scrollAnchorRef} />
+            </>
+          )}
         </div>
         <div className="p-4 border-t border-slate-100 bg-white/80 backdrop-blur">
           <div className="max-w-4xl mx-auto flex gap-3">

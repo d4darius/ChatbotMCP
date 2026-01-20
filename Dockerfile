@@ -48,7 +48,7 @@ RUN touch /app/backend/__init__.py
 ENV PYTHONPATH=/app:/app/backend/src
 
 # Expose the port
-EXPOSE 8000
+EXPOSE 8001
 
 # Run the server
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]

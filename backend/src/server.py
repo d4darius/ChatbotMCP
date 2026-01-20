@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi import FastAPI
@@ -13,6 +14,30 @@ from langchain_core.messages import HumanMessage
 from agent.mcp_testing_agent import initialize_agent 
 
 app = FastAPI()
+
+_GREETING_RE = re.compile(
+    r"^\s*(hi|hello|hey|yo|good (morning|afternoon|evening))[\s!.?]*$",
+    re.IGNORECASE,
+)
+
+# Cache agents per model/provider
+_AGENT_CACHE: dict[str, object] = {}
+_AGENT_LOCK = asyncio.Lock()
+
+async def get_agent(model: str):
+    # Fast path (no lock)
+    cached = _AGENT_CACHE.get(model)
+    if cached is not None:
+        return cached
+
+    # Slow path (init once)
+    async with _AGENT_LOCK:
+        cached = _AGENT_CACHE.get(model)
+        if cached is not None:
+            return cached
+        agent = await initialize_agent(model)
+        _AGENT_CACHE[model] = agent
+        return agent
 
 # Allow the Frontend (port 5173) to talk to the Backend (port 8000)
 app.add_middleware(
@@ -45,7 +70,13 @@ async def root():
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
-    agent = await initialize_agent(req.model)
+    if _GREETING_RE.match(req.message or ""):
+        async def event_generator():
+            payload = json.dumps({"type": "message", "data": "Hello! What would you like to ask about DOREMUS?"})
+            yield f"data: {payload}\n\n"
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+    
+    agent = await get_agent(req.model)
 
     async def event_generator():
         try:
@@ -104,8 +135,21 @@ async def chat_endpoint(req: ChatRequest):
                         })
                         yield f"data: {payload}\n\n"
         except Exception as e:
+            error_body = e.body.get('error', {})
+    
+            # 2. Extract the 'failed_generation' field
+            # This contains the actual text/JSON the model tried to generate
+            failed_gen = error_body.get('failed_generation', str(e))
+
+            # 3. Send detailed error payload
+            err_payload = json.dumps({
+                "type": "message", 
+                "data": f"[Function Call Error: {failed_gen}]"
+            })
+            
+            print(f"Full Error Body: {e.body}")
             # Send error as a message so it appears in chat
-            err_payload = json.dumps({"type": "message", "data": f"[Error: {str(e)}]"})
+            err_payload = json.dumps({"type": "message", "data": f"The LLM encounered an error while using a tool   "})
             print( f"Error during chat processing: {str(e)}" )
             yield f"data: {err_payload}\n\n"
     
