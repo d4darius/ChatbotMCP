@@ -135,22 +135,14 @@ async def chat_endpoint(req: ChatRequest):
                         })
                         yield f"data: {payload}\n\n"
         except Exception as e:
-            error_body = e.body.get('error', {})
-    
-            # 2. Extract the 'failed_generation' field
-            # This contains the actual text/JSON the model tried to generate
-            failed_gen = error_body.get('failed_generation', str(e))
-
-            # 3. Send detailed error payload
+            error_msg = str(e)
+            if hasattr(e, "body") and isinstance(e.body, dict):
+                error_msg = e.body.get("message", error_msg)
             err_payload = json.dumps({
                 "type": "message", 
-                "data": f"[Function Call Error: {failed_gen}]"
+                "data": f"\n\n[System Error: {error_msg}]"
             })
-            
-            print(f"Full Error Body: {e.body}")
-            # Send error as a message so it appears in chat
-            err_payload = json.dumps({"type": "message", "data": f"The LLM encounered an error while using a tool   "})
-            print( f"Error during chat processing: {str(e)}" )
+            print( f"Error during chat processing: {error_msg}" )
             yield f"data: {err_payload}\n\n"
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")

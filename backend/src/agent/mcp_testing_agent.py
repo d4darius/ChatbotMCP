@@ -47,7 +47,7 @@ def create_model(provider: str):
         return ChatAnthropic(model=model_name, temperature=0)
     elif provider == "ollama":
         return ChatOllama(
-            base_url=os.getenv("OLLAMA_API_URL"),
+            base_url=os.getenv("OLLAMA_API_URL", "https://mcp-kg-ollama.tools.eurecom.fr"),
             model=model_name,
             client_kwargs={"headers": {"Authorization": f"Basic {os.getenv('OLLAMA_API_KEY')}"}},
             stream=True,
