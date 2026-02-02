@@ -119,18 +119,83 @@ const SettingsModal = ({ isOpen, onClose, model, setModel }) => {
   );
 };
 
+const formatArgs = (args) => {
+  if (args == null) return "";
+  if (typeof args === "string") return args;
+  if (typeof args !== "object") return String(args);
+
+  // key: value per line
+  return Object.entries(args)
+    .map(([k, v]) => {
+      const vv =
+        v == null
+          ? ""
+          : typeof v === "string"
+            ? v
+            : typeof v === "object"
+              ? JSON.stringify(v, null, 2)
+              : String(v);
+      return `${k}: ${vv}`;
+    })
+    .join("\n");
+};
+
 // --- COMPONENT: TOOL CALL CARD (No Changes) ---
-const ToolCallCard = ({ tool }) => (
-  <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs mb-3 animate-slide-in shadow-sm">
-    <div className="flex items-center gap-2 mb-2 text-blue-400 font-semibold border-b border-slate-700 pb-2">
-      <Terminal size={14} />
-      {tool.name}
+const ToolCallCard = ({ tool }) => {
+  const isError = tool.status === "error";
+  const border = isError ? "border-red-700" : "border-slate-700";
+  const bg = isError ? "bg-red-950/40" : "bg-slate-800";
+  const title = isError ? "text-red-300" : "text-blue-400";
+
+  const errorSnippet =
+    isError && tool.error ? String(tool.error).slice(0, 220) : null;
+
+  return (
+    <div
+      className={`${bg} border ${border} rounded-lg p-3 text-xs mb-3 animate-slide-in shadow-sm`}
+    >
+      <div
+        className={`flex items-center gap-2 mb-2 font-semibold border-b pb-2 ${title} ${isError ? "border-red-900/60" : "border-slate-700"}`}
+      >
+        <Terminal size={14} />
+        {tool.name}
+        {tool.status === "running" && (
+          <span className="text-slate-400 font-normal"> (running)</span>
+        )}
+        {tool.status === "success" && (
+          <span className="text-green-400 font-normal"> (ok)</span>
+        )}
+        {tool.status === "error" && (
+          <span className="text-red-300 font-normal"> (error)</span>
+        )}
+      </div>
+
+      {errorSnippet && (
+        <div className="mb-2 text-red-200 font-mono whitespace-pre-wrap">
+          {errorSnippet}
+          {String(tool.error).length > 220 ? "\n…" : ""}
+        </div>
+      )}
+
+      <div className="font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap">
+        {tool.args != null && (
+          <>
+            <div className="text-slate-400 mb-1">args:</div>
+            {formatArgs(tool.args)}
+          </>
+        )}
+
+        {tool.output && (
+          <>
+            <div className="text-slate-400 mt-2 mb-1">output:</div>
+            {String(tool.output).slice(0, 1200)}
+            {String(tool.output).length > 1200 ? "\n…" : ""}
+          </>
+        )}
+      </div>
     </div>
-    <div className="font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap">
-      {JSON.stringify(tool.args, null, 2).replace(/[{}"]/g, "")}
-    </div>
-  </div>
-);
+  );
+};
 
 // --- MAIN APP ---
 function App() {
@@ -203,7 +268,17 @@ function App() {
             try {
               const parsed = JSON.parse(trimmed.replace("data: ", ""));
               if (parsed.type === "tool_start")
-                setToolHistory((prev) => [...prev, parsed.data]);
+                setToolHistory((prev) => [
+                  ...prev,
+                  {
+                    id: parsed.data.id ?? `${Date.now()}-${prev.length}`,
+                    name: parsed.data.name,
+                    args: parsed.data.args,
+                    status: "running",
+                    output: null,
+                    error: null,
+                  },
+                ]);
               else if (parsed.type === "sparql_update")
                 setCurrentSparql(parsed.data);
               else if (parsed.type === "message") {
@@ -216,6 +291,63 @@ function App() {
                   };
                   return newHistory;
                 });
+              } else if (parsed.type === "tool_end") {
+                setToolHistory((prev) => {
+                  const id = parsed.data?.id;
+                  const next = [...prev];
+
+                  let i = -1;
+                  if (id) i = next.findIndex((t) => t.id === id);
+                  if (i === -1) {
+                    // fallback: last running
+                    const idx = [...next]
+                      .reverse()
+                      .findIndex((t) => t.status === "running");
+                    if (idx === -1) return prev;
+                    i = next.length - 1 - idx;
+                  }
+
+                  next[i] = {
+                    ...next[i],
+                    status: "success",
+                    output: parsed.data?.output ?? "",
+                  };
+                  return next;
+                });
+              } else if (parsed.type === "tool_error") {
+                setToolHistory((prev) => {
+                  const id = parsed.data?.id;
+                  const next = [...prev];
+
+                  let i = -1;
+                  if (id) i = next.findIndex((t) => t.id === id);
+                  if (i === -1) {
+                    const idx = [...next]
+                      .reverse()
+                      .findIndex((t) => t.status === "running");
+                    if (idx === -1) return prev;
+                    i = next.length - 1 - idx;
+                  }
+
+                  next[i] = {
+                    ...next[i],
+                    status: "error",
+                    error: parsed.data?.error ?? "Tool failed",
+                  };
+                  return next;
+                });
+              } else if (parsed.type === "error") {
+                setToolHistory((prev) => [
+                  ...prev,
+                  {
+                    id: `${Date.now()}-backend-error`,
+                    name: "backend_error",
+                    args: null,
+                    status: "error",
+                    output: null,
+                    error: String(parsed.data),
+                  },
+                ]);
               }
             } catch (e) {
               console.error("Parse error", e);
@@ -294,8 +426,8 @@ function App() {
                 <span>Waiting for agent actions...</span>
               </div>
             ) : (
-              toolHistory.map((tool, idx) => (
-                <ToolCallCard key={idx} tool={tool} />
+              toolHistory.map((tool) => (
+                <ToolCallCard key={tool.id} tool={tool} />
               ))
             )}
           </div>
