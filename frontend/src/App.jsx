@@ -100,9 +100,13 @@ const SettingsModal = ({ isOpen, onClose, model, setModel }) => {
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
-              <option value="openai">openai - gpt-5.2</option>
-              <option value="ollama">ollama - qwen3-coder:30b</option>
-              <option value="groq">groq - llama-3.3-70b-versatile</option>
+              <option value="gpt-5.2">openai - gpt-5.2</option>
+              <option value="gpt-4.1">openai - gpt-4.1</option>
+              <option value="qwen3-coder:480b">
+                ollama - qwen3-coder:480b
+              </option>
+              <option value="qwen3-coder:30b">ollama - qwen3-coder:30b</option>
+              <option value="ministral-3:14b">mistral - ministral-3:14b</option>
             </select>
           </div>
         </div>

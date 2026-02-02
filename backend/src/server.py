@@ -110,6 +110,9 @@ def _summarize_tool_result(raw: str, tool_name: str | None = None, max_len: int 
 
     if tool_name in ("add_triplet"):
         return "Triplet(s) added successfully"
+
+    if tool_name in ("select_aggregate_variable"):
+        return "Aggregate variable selected"
             
 
     # Generic: tools returning {"success": true/false, ...}
@@ -288,7 +291,7 @@ async def chat_endpoint(req: ChatRequest):
                 print(traceback.format_exc(limit=8))
 
             # Option A: send a generic error event (frontend can ignore or show a toast)
-            yield _sse({"type": "error", "data": "Internal server error"})
+            yield _sse({"type": "error", "data": error_msg[:30]})
             return
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")

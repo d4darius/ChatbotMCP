@@ -18,9 +18,11 @@ mcp_transport = os.getenv("DOREMUS_MCP_TRANSPORT", "streamable_http")
 
 
 evaluation_models = {
-    "openai": "gpt-5.2", 
-    "groq": "llama-3.3-70b-versatile",
-    "ollama": "qwen3-coder:30b"
+    "gpt-5.2": "openai",
+    "gpt-4.1": "openai",
+    "qwen3-coder:30b": "ollama",
+    "qwen3-coder:480b": "cloud",
+    "ministral-3:14b": "cloud"
 }
 
 connections = {
@@ -35,16 +37,19 @@ client = ExtendedMCPClient(
 )
 
 # Helper function to create model based on provider
-def create_model(provider: str):
+def create_model(model_name: str):
     """Create a chat model based on provider"""
-    model_name = evaluation_models[provider]
+    provider = evaluation_models[model_name]
     
     if provider == "openai":
         return ChatOpenAI(model=model_name, temperature=0)
-    elif provider == "groq":
-        return ChatGroq(model=model_name, temperature=0)
-    elif provider == "anthropic":
-        return ChatAnthropic(model=model_name, temperature=0)
+    elif provider == "cloud":
+        return ChatOllama(
+                base_url="https://ollama.com",
+                model=model_name,
+                client_kwargs={"headers": {"Authorization": f"Bearer {os.getenv('CLOUD_OLLAMA_API_KEY')}"}},
+                temperature=0
+                )
     elif provider == "ollama":
         return ChatOllama(
             base_url=os.getenv("OLLAMA_API_URL", "https://mcp-kg-ollama.tools.eurecom.fr"),
@@ -57,10 +62,10 @@ def create_model(provider: str):
         raise ValueError(f"Unknown provider: {provider}")
     
 # AGENT LLM: Initialize the LLM, bind the tools from the MCP client
-async def initialize_agent(provider: str = "openai"):
+async def initialize_agent(model_name: str = "gpt-5.2"):
     tools = await client.get_tools()
-    llm = create_model(provider)
-    model_name = evaluation_models[provider]
+    llm = create_model(model_name)
+    provider = evaluation_models[model_name]
 
     print("DOREMUS Assistant configuration:")
     print(f"  provider: {provider}")
