@@ -204,7 +204,7 @@ const ToolCallCard = ({ tool }) => {
 // --- MAIN APP ---
 function App() {
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState("openai");
+  const [selectedModel, setSelectedModel] = useState("gpt-4.1");
   const [messages, setMessages] = useState([]);
   const [currentSparql, setCurrentSparql] = useState(null);
   const [toolHistory, setToolHistory] = useState([]);
